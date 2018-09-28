@@ -14,10 +14,12 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
@@ -25,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 public class FileSplit {
 	
 	private static Map<String, Integer> numMap = new TreeMap<String, Integer>();
+	private static Map<String, List<Integer>> durationMap = new TreeMap<String, List<Integer>>();
 	
 	private static void readLargeTextWithNIO(String url, String tempUrl) throws IOException{
 		long time = System.currentTimeMillis();
@@ -102,6 +105,15 @@ public class FileSplit {
 			String url = StringUtils.substringBefore(req[1], "?").trim();
 			if(isNumeric(resp[1])){
 				Integer duration = Integer.valueOf(resp[1]);
+				if(duration > 2000 && !isStatic(url)){
+					if(durationMap.containsKey(url)){
+						durationMap.get(url).add(duration);
+					}else{
+						List<Integer> list = new ArrayList<Integer>();
+						list.add(duration);
+						durationMap.put(url, list);
+					}
+				}
 			}else{
 				System.out.println(data);
 			}
@@ -132,6 +144,16 @@ public class FileSplit {
 			for(Map.Entry<String,Integer> mapping : list){ 
 	               System.out.println(mapping.getKey()+":"+mapping.getValue()); 
 	        }
+			
+			Iterator<Map.Entry<String, List<Integer>>> entries = durationMap.entrySet().iterator(); 
+			while (entries.hasNext()) { 
+			  Map.Entry<String, List<Integer>> entry = entries.next();
+			  Integer sum = 0;
+			  for(Integer integer : entry.getValue()){
+				  sum += integer;
+			  }
+			  System.out.println("url = " + entry.getKey() + ", size = " + entry.getValue().size() + ", sum = " + sum / entry.getValue().size()); 
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -188,6 +210,15 @@ public class FileSplit {
 	public static boolean isNumeric(String str) {
 		Pattern pattern = Pattern.compile("[0-9]*"); 
 		return pattern.matcher(str).matches();
+	}
+	
+	/**
+	 * 判断是否为静态资源
+	 */
+	public static boolean isStatic(String str) {
+		Pattern r = Pattern.compile(".*\\.(css|js)$");
+		Matcher m = r.matcher(str);
+		return m.matches();
 	}
 
 }
